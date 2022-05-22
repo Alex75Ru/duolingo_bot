@@ -1,18 +1,29 @@
-import requests
-from bs4 import BeautifulSoup
+from selenium import webdriver
 
-url = 'https://www.duolingo.com/profile/'
 
-headers = {
-    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36'
-}
+driver = webdriver.Chrome()
+url = 'https://en.duolingo.com/profile/'
 
-def parser(url, user_list):
-    for name in user_list:
-        full_url = f'{url}{name}'
-        response = requests.get(url=full_url, headers=headers, timeout=(50000, 50000), read)
-        soup = BeautifulSoup(response.text, "lxml")
-        items = soup.find_all('div', class_='3gX7q')
-        print(response.text)
 
+def parser(base_url, name):
+    """
+    This function takes base_url and name user
+    returns Total XP of user
+    :param base_url:
+    :param name:
+    :return: {user: Total XP}
+    """
+    full_url = f"{base_url}{name}"
+    driver.get(full_url)
+    main_page = driver.page_source
+    divs = main_page.split(">")
+    for i in range(len(divs)):
+        if "Total XP" in divs[i]:
+            temp_str = divs[i-2]
+            total = int(temp_str[:temp_str.find("<"):])
+            print(total)
+            return {name: total}
+
+
+parser(url, "username")
 
