@@ -1,4 +1,5 @@
 import sqlite3
+from selenium import webdriver
 
 # Создаем файл с БД
 conn = sqlite3.connect('list_users.db')
@@ -52,3 +53,29 @@ def result_all():
     cur.execute("SELECT * FROM users;")
     all_results = cur.fetchall()
     print(all_results)
+
+driver = webdriver.Chrome()
+url = 'https://en.duolingo.com/profile/'
+
+
+def parser(base_url, name):
+    """
+    This function takes base_url and name user
+    returns Total XP of user
+    :param base_url:
+    :param name:
+    :return: {user: Total XP}
+    """
+    full_url = f"{base_url}{name}"
+    driver.get(full_url)
+    main_page = driver.page_source
+    divs = main_page.split(">")
+    for i in range(len(divs)):
+        if "Total XP" in divs[i]:
+            temp_str = divs[i-2]
+            total = int(temp_str[:temp_str.find("<"):])
+            print(total)
+            return {name: total}
+
+
+parser(url, "username")
