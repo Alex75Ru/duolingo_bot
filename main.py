@@ -1,8 +1,9 @@
+import http
+
 import telebot
 from time import sleep
 import sqlite3
-from selenium import webdriver
-
+from seleniumwire import webdriver
 bot = telebot.TeleBot('')
 
 # Создаем файл с БД
@@ -28,16 +29,19 @@ conn.commit()
 #    VALUES('00001', 'Alex', 'Smith', 'male');""")
 # conn.commit()
 
+
 # Добавляем пользователя в формате кортежа
 def add_user(a, b, c, d, e):
     user = (a, b, c, d, e)
     cur.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?);", user)
     conn.commit()
 
+
 # Удаляем пользователя по имени
 def del_user(user):
     cur.execute("DELETE FROM users WHERE name=user;")
     conn.commit()
+
 
 # Берем данные из таблицы
 # запрос данных для одного чел
@@ -46,17 +50,20 @@ def result_one(user):
     one_result = cur.fetchone()
     print(one_result)
 
+
 # запрос данных для первых десяти чел
 def result_ten():
     cur.execute("SELECT * FROM users;")
     ten_results = cur.fetchmany(10)
     print(ten_results)
 
+
 # запрос данных обо всех участниках
 def result_all():
     cur.execute("SELECT * FROM users;")
     all_results = cur.fetchall()
     print(all_results)
+
 
 driver = webdriver.Chrome()
 url = 'https://en.duolingo.com/profile/'
@@ -68,18 +75,23 @@ def parser(base_url, name):
     returns Total XP of user
     :param base_url:
     :param name:
-    :return: {user: Total XP}
+    :return: bool, Total XP
     """
     full_url = f"{base_url}{name}"
     driver.get(full_url)
-    main_page = driver.page_source
-    divs = main_page.split(">")
-    for i in range(len(divs)):
-        if "Total XP" in divs[i]:
-            temp_str = divs[i-2]
-            total = int(temp_str[:temp_str.find("<"):])
-            print(total)
-            return {name: total}
+    if driver.requests[0].response.status_code == http.HTTPStatus.OK:
+        main_page = driver.page_source
+        divs = main_page.split(">")
+        for i in range(len(divs)):
+            if "Total XP" in divs[i]:
+                temp_str = divs[i-2]
+                total = int(temp_str[:temp_str.find("<"):])
+                print(f'{name}: {total}')
+                return True, total
+    else:
+        print(f'Error: {name}')
+        return False, 0
+
 
 
 @bot.message_handler(commands=['start'])
