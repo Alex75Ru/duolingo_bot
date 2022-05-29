@@ -3,8 +3,8 @@ import http
 import telebot
 from time import sleep
 import sqlite3
-from seleniumwire import webdriver
-bot = telebot.TeleBot('')
+from selenium import webdriver
+bot = telebot.TeleBot('5269768810:AAGpKDh6AFbnQMjJg2-zJdApuY2jyFNY3yE')
 
 # Создаем файл с БД
 conn = sqlite3.connect('list_users.db')
@@ -21,10 +21,6 @@ cur = conn.cursor()
 # 6.очки на сайте        2001
 # 7.очки в игре          1
 
-# Мак - добавить колонки, как выводит
-# Настя -
-# Alex - return(bool=True/False, total)
-
 cur.execute("""CREATE TABLE IF NOT EXISTS users(
    user_id INT PRIMARY KEY,
    first_name TEXT,
@@ -35,15 +31,6 @@ cur.execute("""CREATE TABLE IF NOT EXISTS users(
    experience_points_game INTEGER);
 """)
 conn.commit()
-conn.close()
-
-# Добавляем пользователя (образец)
-# user = ('00002', 'Raduga', 'Prank You', 'Raduga_prankyou', '300000', '300000', '0')
-# cur.execute("""INSERT INTO users(userid, fname, lname, gender)
-#    VALUES('00001', 'Alex', 'Smith', 'male');""")
-# conn.commit()
-# conn.close()
-
 
 # Добавляем пользователя в формате кортежа
 def add_user(a, b, c, d, e, f, g):
@@ -58,14 +45,27 @@ def add_user(a, b, c, d, e, f, g):
     @param g: INTEGER 7.очки в игре          1
     """
     user = (a, b, c, d, e, f, g)
-    cur.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?);", user)
+    cur.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?, ?, ?);", user)
     conn.commit()
     conn.close()
 
 
 # Обновляем данные пользователя в формате кортежа (юзер, очки на сайте, очки в игре)
-def add_data_user(user, a, b):
-    cur.execute("UPDATE FROM users SET experience_points_site = a WHERE name=user;")
+def update_data_user(user_id, e, f, g):
+    """
+
+    @param a: INT 1.юзер_id - id в телеграмме
+    @param e: INTEGER 5.очки при регистрации 2000 (меняется кажд понедельник)
+    @param f: INTEGER 6.очки на сайте        2001
+    @param g: INTEGER 7.очки в игре          1
+    """
+    add_form = """UPDATE users SET
+               experience_points_start = ?,
+               experience_points_site = ?,
+               experience_points_game = ?
+               WHERE user_id = user_id"""
+    add_points = (e, f, g)
+    cur.execute(add_form, add_points)
     conn.commit()
     conn.close()
 
@@ -125,7 +125,7 @@ def parser(base_url, name):
         print(f'Error: {name}')
         return False, 0
 
-
+print(result_all())
 
 @bot.message_handler(commands=['start'])
 def reply_to_start(message):
@@ -154,7 +154,7 @@ def reply_to_take_part(message):
     text = message.text
     sharp_ind = text.find('#')
     duo_username = text[sharp_ind+1::].strip()
-    flag, total = parser(base_url, duo_username)
+    flag, total = parser(url, duo_username)
     
     if flag:
         add_user(us_id, first_name, last_name, duo_username, total, 0, 0)    
