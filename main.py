@@ -93,48 +93,85 @@ def parser(base_url, name):
         return False, 0
 
 
+
 @bot.message_handler(commands=['start'])
 def reply_to_start(message):
-    """ Выводит список команд при отправлении команды старт """
-    
-    commands_dict = {'/start': "Выводит этот список",
-                     "/take_part": "Заносит пользователя в таблицу участников",
+    """
+    Выводит список команд при отправлении команды старт.
+    """    
+    commands_dict = {"/start": "Выводит этот список",
+                     "/take_part #username_в_Duolingo": "Заносит пользователя в таблицу участников",
                      "/show": "Показывает опыт участников",
-                     "/clean": "Очищает таблицу участников",
-                     "/show_the_winner": "Показывает победителя и крутую картинку для него",
+                     "/show_the_winner": "Показывает победителя",
                      "/help": "Выводит информацию о боте"
                      }
     new_line = '\n'
     bot.send_message(message.chat.id, f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}''')                     
 
 
-@bot.message_handler(commands=['take_part'])
+@bot.message_handler(regexp=r'/take_part #\w+')
 def reply_to_take_part(message):
-    # Заносим информацию об участнике в БД.
-    bot.reply_to(message, "Отлично! Теперь ты участник соревнования. Разгроми соперников!")
+    """
+    Вводит сообщение от бота в зависимости от того, существует ли введённый им username.
+    Заносит пользователя в БД при правильно введённом username.
+    """
+    us_id = message.from_user.id
+    first_name = message.from_user.first_name
+    last_name = message.from_user.last_name
+    text = message.text
+    sharp_ind = text.find('#')
+    duo_username = text[sharp_ind+1::].strip()
+    flag, total = parser(base_url, duo_username)
     
-  
+    if flag:
+        add_user(us_id, first_name, last_name, duo_username, total, 0, 0)    
+        bot.reply_to(message, "Отлично! Ты теперь участник соревнования. Разгроми соперников!\U0001F608")
+    else:
+        bot.reply_to(message, ('Такого username не существует. Попробуй ввести команду'
+                               '/take_part и свой username в формате /take_part #твой_username_в_Duolingo заново'))
+
+
+show_table_counter = 0   # переменная для определения того, было ли сегодня обращение к команде /show
+
+
 @bot.message_handler(commands=['show'])
 def show_table(message):
-    """ Показывает результаты количество опыта у участников на данный момент. """
-    bot.send_message(message.chat.id, "Таблица участников")   # Скорее всего, понадобятся f-строки или к-либо функция.
-
+    """
+    Показывает результаты количество опыта у участников на данный момент.
+    """
+    global show_table_counter
     
-@bot.message_handler(commands=['clean'])
-def clean_bd(message):
-    """ Очищает БД после завершения соревнования. """
-    bot.send_message(message.chat.id, "БД чиста, как слеза младенца:D")
+    if show_table_counter == 0:    # если сегодня ещё не обновлялись результаты
+        bot.send_message(message.chat.id, "Таблица участников")
+        show_table_counter = 1
+    else:
+        # Показываем архивные данные для всех участников
+        bot.send_message(message.chat.id, "Данные за сегодня")
+
+
+@bot.message_handler(commands=['zero'])
+def reset_show_table_counter(message):
+    """
+    Обнуляет show_table_counter,
+    чтобы команда /show выводила новые данные с наступлением нового дня
+    """    
+    global show_table_counter
+    show_table_counter = 0
 
 
 @bot.message_handler(commands=['show_the_winner'])
 def show_the_winner(message):
-    """ Выводит имя победителя и картинку для него. """
+    """
+    Выводит имя победителя и картинку для него.
+    """
     pass
                      
 
 @bot.message_handler(commands=['help'])
 def help(message):
-    """Выводит информацию о боте в ответ на команду /help. """
+    """
+    Выводит информацию о боте в ответ на команду /help.
+    """
     bot.send_message(message.chat.id, "Информация о боте")
     
 
