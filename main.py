@@ -13,34 +13,67 @@ conn = sqlite3.connect('list_users.db')
 cur = conn.cursor()
 
 # Создаем таблицу в БД 5 колонок
-# 1.юзер_id, 2.имя, 3.очки при регистрации, 4.очки на сайте, 5.очки в игре
+# 1.юзер_id - id в телеграмме
+# 2.first name в тг
+# 3.last name в тг
+# 4.username в дуолинго
+# 5.очки при регистрации 2000 (меняется кажд понедельник)
+# 6.очки на сайте        2001
+# 7.очки в игре          1
+
+# Мак - добавить колонки, как выводит
+# Настя -
+# Alex - return(bool=True/False, total)
+
 cur.execute("""CREATE TABLE IF NOT EXISTS users(
    user_id INT PRIMARY KEY,
-   name TEXT,
+   first_name TEXT,
+   last_name TEXT,
+   user_name TEXT,
    experience_points_start INTEGER,
    experience_points_site INTEGER,
    experience_points_game INTEGER);
 """)
 conn.commit()
+conn.close()
 
 # Добавляем пользователя (образец)
-# user = ('00002', 'Raduga', '300000', '300000', '0')
+# user = ('00002', 'Raduga', 'Prank You', 'Raduga_prankyou', '300000', '300000', '0')
 # cur.execute("""INSERT INTO users(userid, fname, lname, gender)
 #    VALUES('00001', 'Alex', 'Smith', 'male');""")
 # conn.commit()
+# conn.close()
 
 
 # Добавляем пользователя в формате кортежа
-def add_user(a, b, c, d, e):
-    user = (a, b, c, d, e)
+def add_user(a, b, c, d, e, f, g):
+    """
+
+    @param a: INT 1.юзер_id - id в телеграмме
+    @param b: TEXT 2.first name в тг
+    @param c: TEXT 3.last name в тг
+    @param d: TEXT 4.username в дуолинго
+    @param e: INTEGER 5.очки при регистрации 2000 (меняется кажд понедельник)
+    @param f: INTEGER 6.очки на сайте        2001
+    @param g: INTEGER 7.очки в игре          1
+    """
+    user = (a, b, c, d, e, f, g)
     cur.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?);", user)
     conn.commit()
+    conn.close()
 
+
+# Обновляем данные пользователя в формате кортежа (юзер, очки на сайте, очки в игре)
+def add_data_user(user, a, b):
+    cur.execute("UPDATE FROM users SET experience_points_site = a WHERE name=user;")
+    conn.commit()
+    conn.close()
 
 # Удаляем пользователя по имени
 def del_user(user):
     cur.execute("DELETE FROM users WHERE name=user;")
     conn.commit()
+    conn.close()
 
 
 # Берем данные из таблицы
@@ -48,7 +81,7 @@ def del_user(user):
 def result_one(user):
     cur.execute("SELECT * FROM users;")
     one_result = cur.fetchone()
-    print(one_result)
+    return(one_result)
 
 
 # запрос данных для первых десяти чел
