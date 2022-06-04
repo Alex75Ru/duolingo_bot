@@ -6,16 +6,17 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from time import sleep
+from conf import xxx
 
-bot = telebot.TeleBot('')
+bot = telebot.TeleBot(xxx)
 
 # Создаем файл с БД
-conn = sqlite3.connect('list_users.db')
+conn = sqlite3.connect('list_users.db', check_same_thread=True)
 
 # Создаем курсор который будет делать запросы в БД
-cur = conn.cursor()
+curs = conn.cursor()
 
-# Создаем таблицу в БД 5 колонок
+# Создаем таблицу в БД 7 колонок
 # 1.юзер_id - id в телеграмме
 # 2.first name в тг
 # 3.last name в тг
@@ -24,8 +25,7 @@ cur = conn.cursor()
 # 6.очки на сайте        2001
 # 7.очки в игре          1
 
-
-cur.execute("""CREATE TABLE IF NOT EXISTS users(
+curs.execute("""CREATE TABLE IF NOT EXISTS users(
    user_id INT PRIMARY KEY,
    first_name TEXT,
    last_name TEXT,
@@ -35,20 +35,12 @@ cur.execute("""CREATE TABLE IF NOT EXISTS users(
    experience_points_game INTEGER);
 """)
 conn.commit()
-conn.close()
-
-# Добавляем пользователя (образец)
-# user = ('00002', 'Raduga', 'Prank You', 'Raduga_prankyou', '300000', '300000', '0')
-# cur.execute("""INSERT INTO users(userid, fname, lname, gender)
-#    VALUES('00001', 'Alex', 'Smith', 'male');""")
-# conn.commit()
-# conn.close()
+curs.close()
 
 
-# Добавляем пользователя в формате кортежа
 def add_user(a, b, c, d, e, f, g):
     """
-
+    Добавляем пользователя в формате кортежа
     @param a: INT 1.юзер_id - id в телеграмме
     @param b: TEXT 2.first name в тг
     @param c: TEXT 3.last name в тг
@@ -57,46 +49,74 @@ def add_user(a, b, c, d, e, f, g):
     @param f: INTEGER 6.очки на сайте        2001
     @param g: INTEGER 7.очки в игре          1
     """
+    curs = conn.cursor()
     user = (a, b, c, d, e, f, g)
-    cur.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?);", user)
+    curs.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?, ?, ?);", user)
     conn.commit()
-    conn.close()
+    curs.close()
 
 
-# Обновляем данные пользователя в формате кортежа (юзер, очки на сайте, очки в игре)
-def add_data_user(user, a, b):
-    cur.execute("UPDATE FROM users SET experience_points_site = a WHERE name=user;")
+def update_data_user(user_id, e, f, g):
+    """
+    Обновляем данные пользователя в формате кортежа (юзер, очки на сайте, очки в игре)
+    @param a: INT 1.юзер_id - id в телеграмме
+    @param e: INTEGER 5.очки при регистрации 2000 (меняется кажд понедельник)
+    @param f: INTEGER 6.очки на сайте        2001
+    @param g: INTEGER 7.очки в игре          1
+    """
+    curs = conn.cursor()
+    add_form = """UPDATE users SET
+               experience_points_start = ?,
+               experience_points_site = ?,
+               experience_points_game = ?
+               WHERE user_id = user_id"""
+    add_points = (e, f, g)
+    curs.execute(add_form, add_points)
     conn.commit()
-    conn.close()
+    curs.close()
 
+    
 # Удаляем пользователя по имени
-def del_user(user):
-    cur.execute("DELETE FROM users WHERE name=user;")
+def del_user(user_id):
+    curs = conn.cursor()
+    command_delete = "DELETE FROM users WHERE user_id ="
+    curs.execute(f"{command_delete} {user_id};")
     conn.commit()
-    conn.close()
+    curs.close()
 
 
 # Берем данные из таблицы
 # запрос данных для одного чел
 def result_one(user):
-    cur.execute("SELECT * FROM users;")
-    one_result = cur.fetchone()
+    curs = conn.cursor()
+    curs.execute("SELECT * FROM users;")
+    one_result = curs.fetchone()
     return(one_result)
+    curs.close()
 
-
+    
 # запрос данных для первых десяти чел
 def result_ten():
-    cur.execute("SELECT * FROM users;")
-    ten_results = cur.fetchmany(10)
+    curs = conn.cursor()
+    curs.execute("SELECT * FROM users;")
+    ten_results = curs.fetchmany(10)
     print(ten_results)
+    curs.close()
 
-
+    
 # запрос данных обо всех участниках
 def result_all():
-    cur.execute("SELECT * FROM users;")
-    all_results = cur.fetchall()
+    curs = conn.cursor()
+    curs.execute("SELECT * FROM users;")
+    all_results = curs.fetchall()
     print(all_results)
+    curs.close()
 
+# add_user(213123, 'Raduga', 'Prank You', 'Raduga_prankyou', 300000, 300000, 0)
+# add_user(113232, 'Alex', 'New', 'nick', 1000, 1000, 0)
+# update_data_user(113232, 1010, 1010, 10)
+# del_user(213123)
+# print(result_all())
 
 #driver = webdriver.Chrome()
 url = 'https://en.duolingo.com/profile/'
@@ -126,7 +146,7 @@ def parser(base_url, name):
         print(f'Error: {name}')
         return False, 0
 
-
+      
 @bot.message_handler(commands=['start'])
 def reply_to_start(message):
     """
@@ -156,7 +176,7 @@ def reply_to_take_part(message):
     text = message.text
     sharp_ind = text.find('#')
     duo_username = text[sharp_ind+1::].strip()
-    flag, total = parser(base_url, duo_username)
+    flag, total = parser(url, duo_username)
     
     if flag:
         add_user(us_id, first_name, last_name, duo_username, total, 0, 0)    
