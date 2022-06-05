@@ -9,7 +9,7 @@ from conf import xxx
 
 bot = telebot.TeleBot(xxx)
 
-# Создаем файл с БД
+
 # conn = sqlite3.connect('list_users.db', check_same_thread=True)
 
 # Создаем курсор который будет делать запросы в БД
@@ -27,15 +27,21 @@ bot = telebot.TeleBot(xxx)
 
 def connection(fn):
     def wrapped(*args):
+        # Opens a connection to the SQLite database file
         conn = sqlite3.connect('list_users.db')
+        # Создаем курсор который будет делать запросы в БД
         curs = conn.cursor()
+        # execute function
         fn(*args, curs)
+        # Commit the current transaction
         conn.commit()
+        # Closes the cursor
         curs.close()
     return wrapped
 
 
-def get_or_create():
+# Создаем файл с БД
+def create_db():
     conn = sqlite3.connect('list_users.db', check_same_thread=True)
     curs = conn.cursor()
     curs.execute("""CREATE TABLE IF NOT EXISTS users(
@@ -261,7 +267,7 @@ def help(message):
     )
 
 
-get_or_create()
+create_db()
 
 while True:
         try:
