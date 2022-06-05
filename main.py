@@ -10,10 +10,10 @@ from conf import xxx
 bot = telebot.TeleBot(xxx)
 
 # Создаем файл с БД
-conn = sqlite3.connect('list_users.db', check_same_thread=True)
+# conn = sqlite3.connect('list_users.db', check_same_thread=True)
 
 # Создаем курсор который будет делать запросы в БД
-curs = conn.cursor()
+# curs = conn.cursor()
 
 # Создаем таблицу в БД 7 колонок
 # 1.юзер_id - id в телеграмме
@@ -29,27 +29,31 @@ def connection(fn):
     def wrapped(*args):
         conn = sqlite3.connect('list_users.db')
         curs = conn.cursor()
-        fn(*args)
+        fn(*args, curs)
         conn.commit()
         curs.close()
     return wrapped
 
-curs.execute("""CREATE TABLE IF NOT EXISTS users(
-   user_id INT PRIMARY KEY,
-   first_name TEXT,
-   last_name TEXT,
-   user_name TEXT,
-   experience_points_start INTEGER,
-   experience_points_site INTEGER,
-   experience_points_game INTEGER);
-""")
-conn.commit()
-curs.close()
-conn.close()
+
+def get_or_create():
+    conn = sqlite3.connect('list_users.db', check_same_thread=True)
+    curs = conn.cursor()
+    curs.execute("""CREATE TABLE IF NOT EXISTS users(
+       user_id INT PRIMARY KEY,
+       first_name TEXT,
+       last_name TEXT,
+       user_name TEXT,
+       experience_points_start INTEGER,
+       experience_points_site INTEGER,
+       experience_points_game INTEGER);
+    """)
+    conn.commit()
+    curs.close()
+    conn.close()
 
 
-
-def add_user(a, b, c, d, e, f, g):
+@connection
+def add_user(a, b, c, d, e, f, g, curs):
     """
     Добавляем пользователя в формате кортежа
     @param a: INT 1.юзер_id - id в телеграмме
@@ -60,12 +64,12 @@ def add_user(a, b, c, d, e, f, g):
     @param f: INTEGER 6.очки на сайте        2001
     @param g: INTEGER 7.очки в игре          1
     """
-    conn = sqlite3.connect('list_users.db', check_same_thread=True)
-    curs = conn.cursor()
+    # conn = sqlite3.connect('list_users.db', check_same_thread=True)
+    # curs = conn.cursor()
     user = (a, b, c, d, e, f, g)
     curs.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?, ?, ?);", user)
-    conn.commit()
-    curs.close()
+    # conn.commit()
+    # curs.close()
 
 
 def update_data_user(user_id, e, f, g):
@@ -255,9 +259,11 @@ def help(message):
             f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}'''
         )
     )
-    
 
-while True: 
+
+get_or_create()
+
+while True:
         try:
             bot.polling(none_stop=True) 
         except Exception as _ex:
