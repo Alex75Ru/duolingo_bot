@@ -26,10 +26,15 @@ curs = conn.cursor()
 
 def connection(fn):
     def wrapped(*args):
+        # Opens a connection to the SQLite database file
         conn = sqlite3.connect('list_users.db')
+        # Создаем курсор который будет делать запросы в БД
         curs = conn.cursor()
-        fn(*args)
+        # execute function
+        fn(*args, curs)
+        # Commit the current transaction
         conn.commit()
+        # Closes the cursor
         curs.close()
     return wrapped
 
@@ -47,8 +52,8 @@ conn.commit()
 curs.close()
 conn.close()
 
-
-def add_user(a, b, c, d, e, f, g):
+@connection
+def add_user(a, b, c, d, e, f, g, curs):
     """
     Добавляем пользователя в формате кортежа
     @param a: INT 1.юзер_id - id в телеграмме
@@ -59,15 +64,15 @@ def add_user(a, b, c, d, e, f, g):
     @param f: INTEGER 6.очки на сайте        2001
     @param g: INTEGER 7.очки в игре          1
     """
-    conn = sqlite3.connect('list_users.db', check_same_thread=True)
-    curs = conn.cursor()
+    # conn = sqlite3.connect('list_users.db', check_same_thread=True)
+    # curs = conn.cursor()
     user = (a, b, c, d, e, f, g)
     curs.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?, ?, ?);", user)
-    conn.commit()
-    curs.close()
+    # conn.commit()
+    # curs.close()
 
-
-def update_data_user(user_id, e, f, g):
+@connection
+def update_data_user(user_id, e, f, g, curs):
     """
     Обновляем данные пользователя в формате кортежа (юзер, очки на сайте, очки в игре)
     @param a: INT 1.юзер_id - id в телеграмме
@@ -75,7 +80,7 @@ def update_data_user(user_id, e, f, g):
     @param f: INTEGER 6.очки на сайте        2001
     @param g: INTEGER 7.очки в игре          1
     """
-    curs = conn.cursor()
+    # curs = conn.cursor()
     add_form = """UPDATE users SET
                experience_points_start = ?,
                experience_points_site = ?,
@@ -83,45 +88,45 @@ def update_data_user(user_id, e, f, g):
                WHERE user_id = user_id"""
     add_points = (e, f, g)
     curs.execute(add_form, add_points)
-    conn.commit()
-    curs.close()
+    # conn.commit()
+    # curs.close()
 
-    
-# Удаляем пользователя по имени
-def del_user(user_id):
-    curs = conn.cursor()
+@connection
+def del_user(user_id, curs):
+    """Удаляем пользователя по имени"""
+    # curs = conn.cursor()
     command_delete = "DELETE FROM users WHERE user_id ="
     curs.execute(f"{command_delete} {user_id};")
-    conn.commit()
-    curs.close()
+    # conn.commit()
+    # curs.close()
 
-
+@connection
 # Берем данные из таблицы
 # запрос данных для одного чел
-def result_one(user):
-    curs = conn.cursor()
+def result_one(user, curs):
+    # curs = conn.cursor()
     curs.execute("SELECT * FROM users;")
     one_result = curs.fetchone()
     return(one_result)
-    curs.close()
+    # curs.close()
 
-    
+@connection
 # запрос данных для первых десяти чел
-def result_ten():
-    curs = conn.cursor()
+def result_ten(curs):
+    # curs = conn.cursor()
     curs.execute("SELECT * FROM users;")
     ten_results = curs.fetchmany(10)
     print(ten_results)
-    curs.close()
+    # curs.close()
 
-    
+@connection
 # запрос данных обо всех участниках
-def result_all():
-    conn = sqlite3.connect('list_users.db', check_same_thread=True)
-    curs = conn.cursor()
+def result_all(curs):
+    # conn = sqlite3.connect('list_users.db', check_same_thread=True)
+    # curs = conn.cursor()
     curs.execute("SELECT * FROM users;")
     all_results = curs.fetchall()
-    curs.close()
+    # curs.close()
     return all_results
 
 
@@ -220,6 +225,7 @@ def show_table(message):
     """
     Показывает результаты количество опыта у участников на данный момент.
     """
+    output = result_all()
     new_line = '\n'
     gen = data_gen(output)
     msg = bot.send_message(message.chat.id, "Информация загружается")
