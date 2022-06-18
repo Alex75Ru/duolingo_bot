@@ -3,8 +3,6 @@ import random
 import telebot
 import sqlite3
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 from time import sleep
 from conf import xxx
 
@@ -25,6 +23,17 @@ curs = conn.cursor()
 # 6.очки на сайте        2001
 # 7.очки в игре          1
 
+
+def connection(fn):
+    def wrapped(*args):
+        conn = sqlite3.connect('list_users.db')
+        curs = conn.cursor()
+        fn(*args)
+        conn.commit()
+        curs.close()
+    return wrapped
+
+
 curs.execute("""CREATE TABLE IF NOT EXISTS users(
    user_id INT PRIMARY KEY,
    first_name TEXT,
@@ -36,6 +45,7 @@ curs.execute("""CREATE TABLE IF NOT EXISTS users(
 """)
 conn.commit()
 curs.close()
+conn.close()
 
 
 def add_user(a, b, c, d, e, f, g):
@@ -49,6 +59,7 @@ def add_user(a, b, c, d, e, f, g):
     @param f: INTEGER 6.очки на сайте        2001
     @param g: INTEGER 7.очки в игре          1
     """
+    conn = sqlite3.connect('list_users.db', check_same_thread=True)
     curs = conn.cursor()
     user = (a, b, c, d, e, f, g)
     curs.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?, ?, ?);", user)
@@ -106,17 +117,20 @@ def result_ten():
     
 # запрос данных обо всех участниках
 def result_all():
+    conn = sqlite3.connect('list_users.db', check_same_thread=True)
     curs = conn.cursor()
     curs.execute("SELECT * FROM users;")
     all_results = curs.fetchall()
-    print(all_results)
     curs.close()
+    return all_results
+
 
 # add_user(213123, 'Raduga', 'Prank You', 'Raduga_prankyou', 300000, 300000, 0)
 # add_user(113232, 'Alex', 'New', 'nick', 1000, 1000, 0)
 # update_data_user(113232, 1010, 1010, 10)
 # del_user(213123)
 # print(result_all())
+
 
 #driver = webdriver.Chrome()
 url = 'https://en.duolingo.com/profile/'
@@ -130,21 +144,22 @@ def parser(base_url, name):
     :param name:
     :return: bool, Total XP
     """
+
     driver = webdriver.Chrome()
     full_url = f"{base_url}{name}"
     driver.get(full_url)
-    if driver.requests[0].response.status_code == http.HTTPStatus.OK:
-        main_page = driver.page_source
-        divs = main_page.split(">")
-        for i in range(len(divs)):
-            if "Total XP" in divs[i]:
-                temp_str = divs[i-2]
-                total = int(temp_str[:temp_str.find("<"):])
-                print(f'{name}: {total}')
-                return True, total
-    else:
-        print(f'Error: {name}')
-        return False, 0
+
+    main_page = driver.page_source
+    divs = main_page.split(">")
+    for i in range(len(divs)):
+        if "Total XP" in divs[i]:
+            temp_str = divs[i-2]
+            total = int(temp_str[:temp_str.find("<"):])
+            print(f'{name}: {total}')
+            return True, total
+
+    print(f'Error: {name}')
+    return False, 0
 
       
 @bot.message_handler(commands=['start'])
@@ -159,9 +174,10 @@ def reply_to_start(message):
                      "/help": "Выводит информацию о боте"
                      }
     new_line = '\n'
-    bot.send_message(message.chat.id, ("Бот для проведения соревнований в Duolingo.")
-                                    (f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}''')
-                     )                     
+    bot.send_message(message.chat.id,
+                     ("Бот для проведения соревнований в Duolingo." 
+                      f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}''')
+                     )
 
 
 @bot.message_handler(regexp=r'/take_part #\w+')
@@ -187,14 +203,27 @@ def reply_to_take_part(message):
 
 
 
+def data_gen(data_lst):
+    """
+    Возвращает строку с данными для вывода.
+    data_list - список кортежей с данными.
+    """
+    for data in data_lst:
+        last_name = data[2] if data[2] else ''
+        link = f"<a href='tg://user?id={data[0]}'>{data[1]} {last_name}</a>"
+        data = f"{link}  <b>{data[6]}</b>"        
+        yield data
+
+
 @bot.message_handler(commands=['show'])
 def show_table(message):
     """
     Показывает результаты количество опыта у участников на данный момент.
     """
-    new_line = '\n'                
-    bot.send_message(message.chat.id,
-                    f'''{new_line.join(f"<a href='tg://user?id={data[0]}'>{data[1]} {data[2]}</a>  <b>{data[6]}</b>" for data in users_result)}''',
+    new_line = '\n'
+    gen = data_gen(output)
+    msg = bot.send_message(message.chat.id, "Информация загружается")
+    bot.edit_message_text(chat_id=message.chat.id, message_id=msg.id, text=f'''{new_line.join(f"{data}" for data in gen)}''',
                     parse_mode='HTML'
                     )
 
@@ -227,9 +256,13 @@ def help(message):
                      "/help": "Выводит информацию о боте"
                      }
     new_line = '\n'
-    bot.send_message(message.chat.id, ("Бот для проведения соревнований в Duolingo.")
-                                    (f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}''')
-                     )
+    bot.send_message(
+        message.chat.id,
+        (
+            "Бот для проведения соревнований в Duolingo."
+            f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}'''
+        )
+    )
     
 
 while True: 
