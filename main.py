@@ -5,8 +5,9 @@ import sqlite3
 from selenium import webdriver
 from time import sleep
 from conf import xxx
+import os
 
-bot = telebot.TeleBot(xxx)
+bot = telebot.TeleBot(os.getenv("KEY", xxx))
 
 # Создаем файл с БД
 conn = sqlite3.connect('list_users.db', check_same_thread=True)
