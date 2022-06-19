@@ -1,11 +1,13 @@
 import http
 import random
+import os
 import telebot
 import sqlite3
 from selenium import webdriver
 from time import sleep
 from conf import xxx
-import os
+from telebot import types
+
 
 bot = telebot.TeleBot(os.getenv("KEY", xxx))
 
@@ -177,9 +179,24 @@ def reply_to_start(message):
                      "/take_part #username_в_Duolingo": "Заносит пользователя в таблицу участников",
                      "/show": "Показывает опыт участников",
                      "/show_winner": "Показывает победителя",
+                     "/delete": "Удаляет пользователя из списка участников",
                      "/help": "Выводит информацию о боте"
                      }
     new_line = '\n'
+
+    bot.send_message(message.chat.id, ("Бот для проведения соревнований в Duolingo.")
+                                    (f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}''')
+                     )                     
+
+    bot.send_message(
+        message.chat.id,
+        (
+            "<b>Бот для проведения соревнований в Duolingo.</b>\n\n"
+            f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}'''
+        ),
+        parse_mode='HTML'
+    )
+
     bot.send_message(message.chat.id,
                      ("Бот для проведения соревнований в Duolingo." 
                       f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}''')
@@ -208,7 +225,6 @@ def reply_to_take_part(message):
                                '/take_part и свой username в формате /take_part #твой_username_в_Duolingo заново'))
 
 
-
 def data_gen(data_lst):
     """
     Возвращает строку с данными для вывода.
@@ -226,7 +242,13 @@ def show_table(message):
     """
     Показывает результаты количество опыта у участников на данный момент.
     """
-    output = result_all()
+
+    new_line = '\n'                
+    bot.send_message(message.chat.id,
+                    f'''{new_line.join(f"<a href='tg://user?id={data[0]}'>{data[1]} {data[2]}</a>  <b>{data[6]}</b>" for data in users_result)}''',
+
+    output = result_all() 
+
     new_line = '\n'
     gen = data_gen(output)
     msg = bot.send_message(message.chat.id, "Информация загружается")
@@ -249,29 +271,68 @@ def show_winner(message):
                       
     ind = random.randrange(len(pictures_links))
     bot.send_photo(message.chat.id, pictures_links[ind])
-                     
+
+
+global_user_id = 1
+
+
+@bot.message_handler(commands=['delete'])
+def delete(message):
+    """
+    Sends a keyboard with 'Да'/'Нет' buttons
+    in response to the /delete command
+    """
+    global global_user_id
+    global_user_id = message.from_user.id
+    kb = types.InlineKeyboardMarkup()
+    yes_btn = types.InlineKeyboardButton(text="Да", callback_data='yes')
+    no_btn = types.InlineKeyboardButton(text="Нет", callback_data='no')
+    kb.add(yes_btn, no_btn)
+    bot.reply_to(message, "Ты уверен(а), что хочешь покинуть соревнование?", reply_markup=kb)
+    
+
+@bot.callback_query_handler(func=lambda c: c.data in ['yes', 'no'])
+def reply_to_participant_choice(callback):
+    """
+    Sends answer on the user's button choice.
+    If button choice is "Да", delete a user from DB
+    """
+    global global_user_id
+    data = callback.data
+    
+    if data == 'yes':
+        bot.edit_message_text(chat_id=callback.message.chat.id, message_id=callback.message.id,
+                              text="Хорошо, ждём тебя в новом соревновании! \U0001F609")
+        del_user(global_user_id)
+    else: # data = 'no'
+        bot.edit_message_text(chat_id=callback.message.chat.id, message_id=callback.message.id,
+                              text="Очень хорошо, что ты передумал(а). "
+                                  "У тебя есть все шансы на победу!\U0001F608")
+    
 
 @bot.message_handler(commands=['help'])
 def help(message):
     """
     Выводит информацию о боте в ответ на команду /help.
     """
-    commands_dict = {"/start": "Выводит это сообщение",
+    commands_dict = {"/start": "Выводит информацию о боте",
                      "/take_part #username_в_Duolingo": "Заносит пользователя в таблицу участников",
                      "/show": "Показывает опыт участников",
                      "/show_winner": "Показывает победителя",
-                     "/help": "Выводит информацию о боте"
+                     "/delete": "Удаляет пользователя из списка участников",
+                     "/help": "Выводит это сообщение",
                      }
     new_line = '\n'
     bot.send_message(
         message.chat.id,
         (
-            "Бот для проведения соревнований в Duolingo."
+            "<b>Бот для проведения соревнований в Duolingo.</b>\n\n"
             f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}'''
-        )
+        ),
+        parse_mode='HTML'
     )
-    
 
+    
 while True: 
         try:
             bot.polling(none_stop=True) 
