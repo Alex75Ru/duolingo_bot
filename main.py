@@ -1,15 +1,15 @@
 import http
 import random
+import os
 import telebot
 import sqlite3
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 from time import sleep
 from conf import xxx
 from telebot import types
 
-bot = telebot.TeleBot(xxx)
+
+bot = telebot.TeleBot(os.getenv("KEY", xxx))
 
 # Создаем файл с БД
 conn = sqlite3.connect('list_users.db', check_same_thread=True)
@@ -26,6 +26,22 @@ curs = conn.cursor()
 # 6.очки на сайте        2001
 # 7.очки в игре          1
 
+
+def connection(fn):
+    def wrapped(*args):
+        # Opens a connection to the SQLite database file
+        conn = sqlite3.connect('list_users.db')
+        # Создаем курсор который будет делать запросы в БД
+        curs = conn.cursor()
+        # execute function
+        fn(*args, curs)
+        # Commit the current transaction
+        conn.commit()
+        # Closes the cursor
+        curs.close()
+    return wrapped
+
+
 curs.execute("""CREATE TABLE IF NOT EXISTS users(
    user_id INT PRIMARY KEY,
    first_name TEXT,
@@ -37,9 +53,10 @@ curs.execute("""CREATE TABLE IF NOT EXISTS users(
 """)
 conn.commit()
 curs.close()
+conn.close()
 
-
-def add_user(a, b, c, d, e, f, g):
+@connection
+def add_user(a, b, c, d, e, f, g, curs):
     """
     Добавляем пользователя в формате кортежа
     @param a: INT 1.юзер_id - id в телеграмме
@@ -50,14 +67,15 @@ def add_user(a, b, c, d, e, f, g):
     @param f: INTEGER 6.очки на сайте        2001
     @param g: INTEGER 7.очки в игре          1
     """
-    curs = conn.cursor()
+    # conn = sqlite3.connect('list_users.db', check_same_thread=True)
+    # curs = conn.cursor()
     user = (a, b, c, d, e, f, g)
     curs.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?, ?, ?);", user)
-    conn.commit()
-    curs.close()
+    # conn.commit()
+    # curs.close()
 
-
-def update_data_user(user_id, e, f, g):
+@connection
+def update_data_user(user_id, e, f, g, curs):
     """
     Обновляем данные пользователя в формате кортежа (юзер, очки на сайте, очки в игре)
     @param a: INT 1.юзер_id - id в телеграмме
@@ -65,7 +83,7 @@ def update_data_user(user_id, e, f, g):
     @param f: INTEGER 6.очки на сайте        2001
     @param g: INTEGER 7.очки в игре          1
     """
-    curs = conn.cursor()
+    # curs = conn.cursor()
     add_form = """UPDATE users SET
                experience_points_start = ?,
                experience_points_site = ?,
@@ -73,51 +91,54 @@ def update_data_user(user_id, e, f, g):
                WHERE user_id = user_id"""
     add_points = (e, f, g)
     curs.execute(add_form, add_points)
-    conn.commit()
-    curs.close()
+    # conn.commit()
+    # curs.close()
 
-    
-# Удаляем пользователя по имени
-def del_user(user_id):
-    curs = conn.cursor()
+@connection
+def del_user(user_id, curs):
+    """Удаляем пользователя по имени"""
+    # curs = conn.cursor()
     command_delete = "DELETE FROM users WHERE user_id ="
     curs.execute(f"{command_delete} {user_id};")
-    conn.commit()
-    curs.close()
+    # conn.commit()
+    # curs.close()
 
-
+@connection
 # Берем данные из таблицы
 # запрос данных для одного чел
-def result_one(user):
-    curs = conn.cursor()
+def result_one(user, curs):
+    # curs = conn.cursor()
     curs.execute("SELECT * FROM users;")
     one_result = curs.fetchone()
     return(one_result)
-    curs.close()
+    # curs.close()
 
-    
+@connection
 # запрос данных для первых десяти чел
-def result_ten():
-    curs = conn.cursor()
+def result_ten(curs):
+    # curs = conn.cursor()
     curs.execute("SELECT * FROM users;")
     ten_results = curs.fetchmany(10)
     print(ten_results)
-    curs.close()
+    # curs.close()
 
-    
+@connection
 # запрос данных обо всех участниках
-def result_all():
-    curs = conn.cursor()
+def result_all(curs):
+    # conn = sqlite3.connect('list_users.db', check_same_thread=True)
+    # curs = conn.cursor()
     curs.execute("SELECT * FROM users;")
     all_results = curs.fetchall()
-    print(all_results)
-    curs.close()
+    # curs.close()
+    return all_results
+
 
 # add_user(213123, 'Raduga', 'Prank You', 'Raduga_prankyou', 300000, 300000, 0)
 # add_user(113232, 'Alex', 'New', 'nick', 1000, 1000, 0)
 # update_data_user(113232, 1010, 1010, 10)
 # del_user(213123)
 # print(result_all())
+
 
 #driver = webdriver.Chrome()
 url = 'https://en.duolingo.com/profile/'
@@ -131,21 +152,22 @@ def parser(base_url, name):
     :param name:
     :return: bool, Total XP
     """
+
     driver = webdriver.Chrome()
     full_url = f"{base_url}{name}"
     driver.get(full_url)
-    if driver.requests[0].response.status_code == http.HTTPStatus.OK:
-        main_page = driver.page_source
-        divs = main_page.split(">")
-        for i in range(len(divs)):
-            if "Total XP" in divs[i]:
-                temp_str = divs[i-2]
-                total = int(temp_str[:temp_str.find("<"):])
-                print(f'{name}: {total}')
-                return True, total
-    else:
-        print(f'Error: {name}')
-        return False, 0
+
+    main_page = driver.page_source
+    divs = main_page.split(">")
+    for i in range(len(divs)):
+        if "Total XP" in divs[i]:
+            temp_str = divs[i-2]
+            total = int(temp_str[:temp_str.find("<"):])
+            print(f'{name}: {total}')
+            return True, total
+
+    print(f'Error: {name}')
+    return False, 0
 
       
 @bot.message_handler(commands=['start'])
@@ -161,11 +183,11 @@ def reply_to_start(message):
                      "/help": "Выводит информацию о боте"
                      }
     new_line = '\n'
-<<<<<<< Updated upstream
+
     bot.send_message(message.chat.id, ("Бот для проведения соревнований в Duolingo.")
                                     (f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}''')
                      )                     
-=======
+
     bot.send_message(
         message.chat.id,
         (
@@ -174,7 +196,11 @@ def reply_to_start(message):
         ),
         parse_mode='HTML'
     )
->>>>>>> Stashed changes
+
+    bot.send_message(message.chat.id,
+                     ("Бот для проведения соревнований в Duolingo." 
+                      f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}''')
+                     )
 
 
 @bot.message_handler(regexp=r'/take_part #\w+')
@@ -199,23 +225,34 @@ def reply_to_take_part(message):
                                '/take_part и свой username в формате /take_part #твой_username_в_Duolingo заново'))
 
 
+def data_gen(data_lst):
+    """
+    Возвращает строку с данными для вывода.
+    data_list - список кортежей с данными.
+    """
+    for data in data_lst:
+        last_name = data[2] if data[2] else ''
+        link = f"<a href='tg://user?id={data[0]}'>{data[1]} {last_name}</a>"
+        data = f"{link}  <b>{data[6]}</b>"        
+        yield data
+
 
 @bot.message_handler(commands=['show'])
 def show_table(message):
     """
     Показывает результаты количество опыта у участников на данный момент.
     """
-<<<<<<< Updated upstream
+
     new_line = '\n'                
     bot.send_message(message.chat.id,
                     f'''{new_line.join(f"<a href='tg://user?id={data[0]}'>{data[1]} {data[2]}</a>  <b>{data[6]}</b>" for data in users_result)}''',
-=======
+
     output = result_all() 
+
     new_line = '\n'
     gen = data_gen(output)
     msg = bot.send_message(message.chat.id, "Информация загружается")
     bot.edit_message_text(chat_id=message.chat.id, message_id=msg.id, text=f'''{new_line.join(f"{data}" for data in gen)}''',
->>>>>>> Stashed changes
                     parse_mode='HTML'
                     )
 
@@ -286,11 +323,6 @@ def help(message):
                      "/help": "Выводит это сообщение",
                      }
     new_line = '\n'
-<<<<<<< Updated upstream
-    bot.send_message(message.chat.id, ("Бот для проведения соревнований в Duolingo.")
-                                    (f'''{new_line.join(f"{key} : {value}" for key, value in commands_dict.items())}''')
-                     )
-=======
     bot.send_message(
         message.chat.id,
         (
@@ -299,9 +331,8 @@ def help(message):
         ),
         parse_mode='HTML'
     )
->>>>>>> Stashed changes
-    
 
+    
 while True: 
         try:
             bot.polling(none_stop=True) 
